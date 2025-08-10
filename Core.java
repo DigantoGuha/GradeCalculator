@@ -1,23 +1,22 @@
+import java.io.*;
 import java.util.*;
 
-class Student {
-    String name;
-    int[] marks;
-    int total;
-    double average;
-    char grade;
+class Student implements Serializable {
+    private String name;
+    private int[] marks;
+    private int total;
+    private double average;
+    private char grade;
 
-    Student(String name, int[] marks) {
+    public Student(String name, int[] marks) {
         this.name = name;
         this.marks = marks;
         calculateResults();
     }
 
-    void calculateResults() {
+    private void calculateResults() {
         total = 0;
-        for (int m : marks) {
-            total += m;
-        }
+        for (int m : marks) total += m;
         average = total / (double) marks.length;
 
         if (average >= 90) grade = 'A';
@@ -27,41 +26,106 @@ class Student {
         else grade = 'F';
     }
 
-    void display() {
-        System.out.println(name + " | Total: " + total + " | Avg: " + average + " | Grade: " + grade);
+    public void display() {
+        System.out.printf("%-20s %-10d %-10.2f %-5c%n", name, total, average, grade);
     }
 }
 
 public class GradeCalculator {
+    private static final String FILE_NAME = "results.dat";
+    private static List<Student> students = new ArrayList<>();
+    private static Scanner sc = new Scanner(System.in);
+
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+        loadData();
+        int choice;
+        do {
+            System.out.println("\n=== Grade Calculator Menu ===");
+            System.out.println("1. Add Student");
+            System.out.println("2. View All Results");
+            System.out.println("3. Save & Exit");
+            System.out.print("Enter your choice: ");
 
-        System.out.print("Enter number of students: ");
-        int n = sc.nextInt();
-        sc.nextLine(); // consume newline
-
-        List<Student> students = new ArrayList<>();
-
-        for (int i = 0; i < n; i++) {
-            System.out.print("\nEnter student name: ");
-            String name = sc.nextLine();
-
-            System.out.print("Enter number of subjects: ");
-            int subjects = sc.nextInt();
-
-            int[] marks = new int[subjects];
-            for (int j = 0; j < subjects; j++) {
-                System.out.print("Enter marks for subject " + (j+1) + ": ");
-                marks[j] = sc.nextInt();
+            try {
+                choice = Integer.parseInt(sc.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a number.");
+                continue;
             }
-            sc.nextLine(); // consume newline
 
-            students.add(new Student(name, marks));
+            switch (choice) {
+                case 1 -> addStudent();
+                case 2 -> viewResults();
+                case 3 -> saveData();
+                default -> System.out.println("Invalid choice. Try again.");
+            }
+        } while (true);
+    }
+
+    private static void addStudent() {
+        System.out.print("Enter student name: ");
+        String name = sc.nextLine();
+
+        int subjects = 0;
+        while (true) {
+            try {
+                System.out.print("Enter number of subjects: ");
+                subjects = Integer.parseInt(sc.nextLine());
+                if (subjects <= 0) throw new IllegalArgumentException();
+                break;
+            } catch (Exception e) {
+                System.out.println("Please enter a valid positive number.");
+            }
         }
 
-        System.out.println("\n----- Results -----");
-        for (Student s : students) {
-            s.display();
+        int[] marks = new int[subjects];
+        for (int i = 0; i < subjects; i++) {
+            while (true) {
+                try {
+                    System.out.print("Enter marks for subject " + (i + 1) + ": ");
+                    marks[i] = Integer.parseInt(sc.nextLine());
+                    if (marks[i] < 0 || marks[i] > 100) throw new IllegalArgumentException();
+                    break;
+                } catch (Exception e) {
+                    System.out.println("Marks must be between 0 and 100.");
+                }
+            }
+        }
+
+        students.add(new Student(name, marks));
+        System.out.println("Student added successfully!");
+    }
+
+    private static void viewResults() {
+        if (students.isEmpty()) {
+            System.out.println("No records found.");
+            return;
+        }
+
+        System.out.printf("%-20s %-10s %-10s %-5s%n", "Name", "Total", "Average", "Grade");
+        System.out.println("--------------------------------------------------");
+        for (Student s : students) s.display();
+    }
+
+    private static void saveData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oos.writeObject(students);
+            System.out.println("Data saved successfully. Exiting...");
+            System.exit(0);
+        } catch (IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
+        }
+    }
+
+    private static void loadData() {
+        File file = new File(FILE_NAME);
+        if (!file.exists()) return;
+
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+            students = (List<Student>) ois.readObject();
+            System.out.println("Loaded " + students.size() + " student records.");
+        } catch (Exception e) {
+            System.out.println("Error loading data. Starting fresh.");
         }
     }
 }
